@@ -1,0 +1,27 @@
+
+SCREEN_WIDTH, SCREEN_HEIGHT = 960, 448
+PANEL_WIDTH = SCREEN_WIDTH
+PANEL_HEIGHT = 192
+FPS = 60
+TITLE = "POKEMON BATTLES"
+DIR = "assets/"
+GUI = "gui_/"
+SPRITES = "sprites_/"
+
+# colors
+BLACK = (72, 72, 72)
+GREY = (208, 208, 200)
+DARK_GREY = (40, 48, 48)
+WHITE = (248, 248, 248)
+PURPLE = (104, 88, 112)
+RED = (248, 0, 0)
+BLUE = (40, 80, 104)
+YELLOW = (200, 168, 72)
+CLEAN = (0, 0, 0, 0)
+
+
+
+
+
+
+
