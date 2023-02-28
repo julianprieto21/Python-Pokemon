@@ -96,6 +96,7 @@ class Game:
         self.images["mouse"] = p.image.load(DIR+GUI+"mouse.png")
         self.images["info_ally"] = p.image.load(DIR+GUI+"info_ally.png")
         self.images["info_enemy"] = p.image.load(DIR + GUI + "info_enemy.png")
+        self.images["fight"] = p.image.load(DIR + GUI + "fight.png")
 
     def check_events(self):
         """
@@ -107,10 +108,15 @@ class Game:
                 self.running = False
             elif event.type == p.MOUSEBUTTONDOWN:
                 pos = p.mouse.get_pos()
-                if self.interface == "start":
-                    self.start_mouse_events(pos)
-                elif self.interface[0:6] == "battle":
-                    self.battle_mouse_events(pos)
+                if event.dict["button"] == 1:
+                    # Boton izquierdo
+                    if self.interface == "start":
+                        self.start_mouse_events(pos)
+                    elif self.interface[0:6] == "battle":
+                        self.battle_mouse_events(pos)
+                elif event.dict["button"] == 3 and self.interface[:11] == "battle.main":
+                    # Boton derecho y que estemos en etapa de enfrentamiento
+                    self.interface = "battle.main"
             elif event.type == p.KEYDOWN:
                 pass
 
@@ -123,7 +129,9 @@ class Game:
         title_obj = self.title_font.render("Batallas Pokemon", False, GREY)
         title_loc = p.Rect((0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 3)).move(
             SCREEN_WIDTH / 2 - title_obj.get_width() / 2, SCREEN_HEIGHT / 3 / 2 - title_obj.get_height() / 2)
-        title_rect = p.Rect((SCREEN_WIDTH / 2 - title_obj.get_width() / 2 - 50, SCREEN_HEIGHT / 3 / 2 - title_obj.get_height() / 2, title_obj.get_width() + 100, title_obj.get_height() + 70))
+        title_rect = p.Rect((SCREEN_WIDTH / 2 - title_obj.get_width() / 2 - 50,
+                             SCREEN_HEIGHT / 3 / 2 - title_obj.get_height() / 2,
+                             title_obj.get_width() + 100, title_obj.get_height() + 70))
         p.draw.rect(self.screen, p.Color("white"), title_rect)
         p.draw.rect(self.screen, p.Color(BLACK), title_rect, 2)
         self.screen.blit(title_obj, title_loc)
@@ -265,19 +273,20 @@ class Game:
         :param pos:
         :return:
         """
+        global attacker, move_made, opp_hp
         if self.interface == "battle.pre":
             if battle_rect.colliderect(pos[0], pos[1], 1, 1):
                 self.interface = "battle.main"
 
         elif self.interface == "battle.main":
             if self.buttons["LUCHA"].colliderect(pos[0], pos[1], 1, 1):
-                print("ATAQUE")
+                self.interface = "battle.main.fight"
 
             elif self.buttons["MOCHILA"].colliderect(pos[0], pos[1], 1, 1):
-                print("MOCHILA")
+                self.interface = "battle.main.bag"
 
             elif self.buttons["POKEMON"].colliderect(pos[0], pos[1], 1, 1):
-                print("POKEMON")
+                self.interface = "battle.main.pokemon"
 
             elif self.buttons["HUIR"].colliderect(pos[0], pos[1], 1, 1):
                 if self.battle.can_run():
@@ -286,6 +295,17 @@ class Game:
                 else:
                     print(f"{self.battle.ally.name.capitalize()} no ha podido huir!!")
 
+        elif self.interface[12:] == "fight":
+            moves = self.battle.ally.move
+            for move in moves:
+                if self.battle.active:
+                    if self.buttons[move.name.upper()].colliderect(pos[0], pos[1], 1, 1):
+                        if self.battle.active:
+                            enemy_move = random.choice(self.battle.enemy.move)
+                            attacker, move_made, opp_hp = self.battle.make_moves(move, enemy_move)
+                            self.interface = "battle.main.move"
+                else:  # Batalla terminó
+                    pass ########
 
     def draw_highlight(self):
         """
@@ -331,7 +351,6 @@ class Game:
         """
         global battle_rect
         battle_rect = p.Rect((0, 0, SCREEN_WIDTH, SCREEN_HEIGHT + PANEL_HEIGHT))  # Toda la pantalla
-        p.draw.rect(self.screen, p.Color(CLEAN), battle_rect)
         self.screen.blit(self.images["battle_bg"], (0, 0))
         self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
         if not self.battle:
@@ -347,8 +366,12 @@ class Game:
         self.cpu_sprite.update(self.cpu_sprite.final_pos[0])
         self.current_sprites.draw(self.screen)
 
-        if self.interface == "battle.main":
+        if self.interface[0:11] == "battle.main":
             self.battle_main_stage()
+
+        if self.interface == "battle.main.move":
+            self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
+            self.draw_text(f"{attacker.name.upper()} usó {move_made.name.upper()}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
 
     def battle_pre_stage(self):
         """
@@ -383,6 +406,32 @@ class Game:
         self.draw_text("Lv" + str(self.battle.enemy.level), (364, 60), BLACK)
         # Botones
         self.draw_battle_buttons()
+
+        # Vida y XP
+        b = self.battle.ally.xp_next_level - self.battle.ally.get_xp_growth_rate(self.battle.ally.level)
+        xp_pixels = self.battle.ally.xp_won * 256 // b
+        p.draw.rect(self.screen, p.Color(XP_COLOR), p.Rect((608, 422, xp_pixels, 8)))
+
+        if self.interface[12:] == "fight":
+            self.screen.blit(self.images["fight"], (0, SCREEN_HEIGHT))
+            x, y, z = 60, 4, -10
+            for i in range(len(self.battle.ally.move)):
+                self.draw_text(self.battle.ally.move[i].name.upper(),
+                               (x, SCREEN_HEIGHT + PANEL_HEIGHT / y + z), BLACK, is_button=True)
+                if i + 1 == 1 or i + 1 == 3:
+                    x = 340
+                elif i + 1 == 2:
+                    x, y, z = 60, 2, 10
+
+        elif self.interface[12:] == "bag":
+            print("MOCHILA")
+
+        elif self.interface[12:] == "pokemon":
+            print("POKEMON")
+
+    def show_move(self, attacker, move, opp_hp):
+        print("holaaa")
+        self.draw_text(f"{attacker.name} usó {move.name}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
 
     def main(self):
         """
