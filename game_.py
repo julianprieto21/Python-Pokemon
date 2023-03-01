@@ -39,8 +39,10 @@ class SpritePokemon(p.sprite.Sprite):
             self.rect.centery = SCREEN_HEIGHT - (self.image.get_height() / 2)
             self.final_pos = (100, self.rect.centery)
             self.speed = 30
-
-        self.pokemon = Pokemon(nro)
+        if not front_view:
+            self.pokemon = Pokemon(nro, False)
+        else:
+            self.pokemon = Pokemon(nro)
 
     def update(self, pos):
         self.rect.x = pos
@@ -71,6 +73,8 @@ class Game:
         self.selected = None
         self.interface = "start"
         self.animation_made = False
+        self.ally_move = None
+        self.enemy_move = None
 
     def load_images(self):
         """
@@ -273,10 +277,23 @@ class Game:
         :param pos:
         :return:
         """
-        global attacker, move_made, opp_hp
         if self.interface == "battle.pre":
             if battle_rect.colliderect(pos[0], pos[1], 1, 1):
                 self.interface = "battle.main"
+
+        elif self.interface == "battle.main.move":
+            if battle_rect.colliderect(pos[0], pos[1], 1, 1):
+                if self.battle.first_move_made:
+                    self.interface = "battle.main"
+                    self.battle.first_move_made = False
+                    self.battle.move_made = False
+                    if self.battle.ally.current_hp == 0 or self.battle.enemy.current_hp == 0:
+                        self.battle.end_combat()
+                else:
+                    self.battle.first_move_made = True
+                    self.battle.move_made = False
+                    if self.battle.ally.current_hp == 0 or self.battle.enemy.current_hp == 0:
+                        self.battle.end_combat()
 
         elif self.interface == "battle.main":
             if self.buttons["LUCHA"].colliderect(pos[0], pos[1], 1, 1):
@@ -295,17 +312,13 @@ class Game:
                 else:
                     print(f"{self.battle.ally.name.capitalize()} no ha podido huir!!")
 
-        elif self.interface[12:] == "fight":
+        elif self.interface == "battle.main.fight":
             moves = self.battle.ally.move
             for move in moves:
-                if self.battle.active:
-                    if self.buttons[move.name.upper()].colliderect(pos[0], pos[1], 1, 1):
-                        if self.battle.active:
-                            enemy_move = random.choice(self.battle.enemy.move)
-                            attacker, move_made, opp_hp = self.battle.make_moves(move, enemy_move)
-                            self.interface = "battle.main.move"
-                else:  # Batalla terminó
-                    pass ########
+                if self.buttons[move.name.upper()].colliderect(pos[0], pos[1], 1, 1):
+                    self.ally_move = move
+                    self.enemy_move = random.choice(self.battle.enemy.move)
+                    self.interface = "battle.main.move"
 
     def draw_highlight(self):
         """
@@ -357,7 +370,7 @@ class Game:
             self.user_sprite = SpritePokemon(self.choice[0])
             self.cpu_sprite = SpritePokemon(self.enemy, True)
             self.current_sprites = p.sprite.Group(self.user_sprite, self.cpu_sprite)
-            self.battle = Battle(self.user_sprite.pokemon, self.cpu_sprite.pokemon)
+            self.battle = Battle(Pokemon(self.choice[0], wild=False), Pokemon(self.enemy, wild=True))
 
         if self.interface == "battle.pre":
             self.battle_pre_stage()
@@ -368,10 +381,6 @@ class Game:
 
         if self.interface[0:11] == "battle.main":
             self.battle_main_stage()
-
-        if self.interface == "battle.main.move":
-            self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
-            self.draw_text(f"{attacker.name.upper()} usó {move_made.name.upper()}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
 
     def battle_pre_stage(self):
         """
@@ -408,11 +417,9 @@ class Game:
         self.draw_battle_buttons()
 
         # Vida y XP
-        b = self.battle.ally.xp_next_level - self.battle.ally.get_xp_growth_rate(self.battle.ally.level)
-        xp_pixels = self.battle.ally.xp_won * 256 // b
-        p.draw.rect(self.screen, p.Color(XP_COLOR), p.Rect((608, 422, xp_pixels, 8)))
+        ############
 
-        if self.interface[12:] == "fight":
+        if self.interface == "battle.main.fight":
             self.screen.blit(self.images["fight"], (0, SCREEN_HEIGHT))
             x, y, z = 60, 4, -10
             for i in range(len(self.battle.ally.move)):
@@ -423,15 +430,27 @@ class Game:
                 elif i + 1 == 2:
                     x, y, z = 60, 2, 10
 
-        elif self.interface[12:] == "bag":
+        if self.interface == "battle.main.move":
+            turn = self.battle.get_turn()
+            first = self.battle.ally if turn else self.battle.enemy
+            second = self.battle.ally if not turn else self.battle.enemy
+
+            if not self.battle.first_move_made:
+                self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
+                move = self.ally_move if turn else self.enemy_move
+                self.draw_text(f"{first.name.upper()} usó {move.name.upper()}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
+                self.battle.make_move(second, move)
+            else:
+                self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
+                move = self.ally_move if not turn else self.enemy_move
+                self.draw_text(f"{second.name.upper()} usó {move.name.upper()}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
+                self.battle.make_move(first, move)
+
+        elif self.interface == "battle.main.bag":
             print("MOCHILA")
 
-        elif self.interface[12:] == "pokemon":
+        elif self.interface == "battle.main.pokemon":
             print("POKEMON")
-
-    def show_move(self, attacker, move, opp_hp):
-        print("holaaa")
-        self.draw_text(f"{attacker.name} usó {move.name}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
 
     def main(self):
         """
@@ -451,6 +470,10 @@ class Game:
                     self.draw_highlight()
             if self.interface[0:6] == "battle":
                 self.battle_stage()
+                if not self.battle.active:
+                    p.time.wait(5000)
+                    self.running = False
+                    #self.interface = "battle.main"
 
             self.clock.tick(FPS)
             p.display.flip()

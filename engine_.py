@@ -48,9 +48,10 @@ class Pokemon:
     """
     Clase Pokemon
     """
-    def __init__(self, nro):
+    def __init__(self, nro, wild=True):
         # Info
         self.nro = nro
+        self.wild = wild
         self.db = sqlite3.connect(DIR + "pokemon_database.sqlite")
         self.cursor = self.db.cursor()
         self.name = self.get_name()
@@ -66,9 +67,8 @@ class Pokemon:
         # Stats
         self.nature_stats = self.get_nature()
         self.level = 5
-        self.xp_next_level = self.get_xp_growth_rate()
-        self.current_xp = self.get_xp_growth_rate(self.level)
-        self.xp_won = 0
+        self.xp_next_level = self.get_xp_growth_rate() - self.get_xp_growth_rate(self.level)
+        self.current_xp = 0
         self.hp = self.get_stat(self.base_hp, self.iv[0], self.ev[0], hp=True)
         self.attack = self.get_stat(self.base_attack, self.iv[1], self.ev[1], self.nature_stats["attack"])
         self.defense = self.get_stat(self.base_defense, self.iv[2], self.ev[2], self.nature_stats["defense"])
@@ -169,7 +169,7 @@ class Pokemon:
     def get_xp_growth_rate(self, lvl=None):
         """
         Calcula la experiencia necesaria para llegar al siguiente nivel (o  aun nivel n)
-        :param n: Nivel a calcular
+        :param lvl: Nivel a calcular
         :return: int
         """
         def p(i):
@@ -227,7 +227,6 @@ class Battle:
         self.ally = ally
         self.enemy = enemy
         self.active = True
-        self.first_move_made = False
         self.ally_turn = True if self.ally.speed >= self.enemy.speed else False  # Determina de quien es el turno. En un inicio, ataca el pokemon mas rapido
         self.change = True  # Posibilidad de "ally" de cambiar de pokemon
         self.attempts_run = 0
@@ -251,6 +250,8 @@ class Battle:
             [1, 1, 1, 1, 1, 1, 1, 1, .5, 1, 1, 1, 1, 1, 1, 2, 1, 0],
             [1, .5, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, .5, .5],
             [1, 2, 1, .5, 1, 1, 1, 1, .5, .5, 1, 1, 1, 1, 1, 2, 2, 1]])
+        self.first_move_made = False
+        self.move_made = False
 
     def get_turn(self):
         """
@@ -261,7 +262,7 @@ class Battle:
 
     def can_run(self):
         """
-        Calcula la posibilidad de un pokemon de huir de un combate. Por ahora calcula solo para "ally"
+        Calcula la posibilidad de un pokemon de huir de un combate. Calcula solo para "ally"
         :return:
         """
         a = self.ally.speed
@@ -311,73 +312,44 @@ class Battle:
         defender = self.ally if not self.ally_turn else self.enemy
         if len(attacker.id_type) == 2:
             b = 1.5 if move.type_id == attacker.id_type[0] or move.type_id == attacker.id_type[1] else 1
-            #e1 = self.effect_chart[move.type_id][defender.id_type[0]]
-            #e2 = self.effect_chart[move.type_id][defender.id_type[1]]  # Efectividad va a enfocarse en el tipo principal del pokemon, sin tener en cuenta en segundo tipo, si es que tiene
-            #e = e1
         else:
             b = 1.5 if move.type_id == attacker.id_type[0] else 1
-        e = self.effect_chart[move.type_id-1][defender.id_type[0]-1]
+        e = self.effect_chart[move.type_id-1][defender.id_type[0]-1] # verifica con el primer tipo del pokemon. Ignora el posible segundo tipo
         return b, e
 
-    def make_moves(self, ally_move, enemy_move):
-        self.ally_turn = self.get_turn()  # Por ahora innecesario
-        first = self.ally if self.ally_turn else self.enemy
-        first_move = ally_move if self.ally_turn else enemy_move
-        second = self.enemy if self.ally_turn else self.ally
-        second_move = enemy_move if self.ally_turn else ally_move
-
-        #self.check_win()
-        if self.active and not self.first_move_made:
-            print(first.name + " usó " + first_move.name) #########################################
-            hp = self.attack(second, first_move)
-            self.check_win()
-            #self.first_move_made = True
-            return first, first_move, hp
-        if self.active and self.first_move_made:
-            print(second.name + " usó " + second_move.name) ###################################
-            self.attack(first, second_move)
-            self.check_win()
-            self.first_move_made = False
-        print("--") ###################################################
-
-    def attack(self, opp, move):
-        damage = self.get_damage(move)
-        opp.current_hp -= damage
-        opp.current_hp = 0 if opp.current_hp < 0 else opp.current_hp
-        print(opp.name, opp.current_hp, opp.hp) ################################
-        return opp.current_hp
-
-    def check_win(self):
-        if self.ally_turn:
-            if self.enemy.current_hp == 0:
-                self.end_combat(self.ally)
-        else:
-            if self.ally.current_hp == 0:
-                self.end_combat(self.enemy)
+    def make_move(self, opponent, move):
+        if not self.move_made:
+            damage = self.get_damage(move)
+            opponent.current_hp -= damage
+            opponent.current_hp = 0 if opponent.current_hp <= 0 else opponent.current_hp
+            print(f"{opponent.name.upper()} quedó con {opponent.current_hp}")
+            self.move_made = True
+            #if opponent.current_hp == 0:
+            #    self.end_combat()
 
     def get_experience(self):
         """
         Calcula la experiencia ganado por el pokemon ganador
         :return:
         """
-        e = self.ally.base_xp if self.ally_turn else self.enemy.base_xp
-        l = self.ally.level if self.ally_turn else self.enemy.level
-        c = 1  # tipo de combate. salvaje = 1, entrenador = 1.5
+        e = self.enemy.base_xp  #self.ally.base_xp if self.ally_turn else self.enemy.base_xp
+        l = self.enemy.level  #self.ally.level if self.ally_turn else self.enemy.level
+        c = 1 if self.enemy.wild else 1.5  # tipo de combate. salvaje = 1, entrenador = 1.5
         xp = (e * l * c) / 7
         return math.floor(xp)
 
-    def end_combat(self, winner):
+    def end_combat(self):
         """
         Funcion de finalizacion de combate
         :return:
         """
-        print(winner.current_xp)
-        print(winner.name + " ha ganado " + str(self.get_experience()) + " de xp!") ######################
-        winner.current_xp += self.get_experience()
-        winner.xp_won += self.get_experience()
-        print(winner.current_xp)
-        print(winner.xp_next_level)
-        if winner.current_xp >= winner.xp_next_level:
-            winner.level += 1
-            winner.xp_won = 0
-        self.active = False
+        winner = self.ally if self.enemy.current_hp == 0 else self.enemy if self.ally.current_hp == 0 else None
+        if not winner.wild:
+            print(winner.name.upper() + " ha ganado " + str(self.get_experience()) + " de xp!") ######################
+            winner.current_xp += self.get_experience()
+            if winner.current_xp >= winner.xp_next_level:
+                winner.level += 1
+                winner.current_xp = winner.xp_next_level - winner.current_xp
+            self.active = False
+        if winner.wild:
+            self.active = False
