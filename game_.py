@@ -76,9 +76,10 @@ class Game:
         self.ally_move = None
         self.enemy_move = None
 
+    # Cargar imágenes necesarias
     def load_images(self):
         """
-        Carga de imagenes general
+        Carga de imágenes general
         :return:
         """
         # Start
@@ -102,6 +103,7 @@ class Game:
         self.images["info_enemy"] = p.image.load(DIR + GUI + "info_enemy.png")
         self.images["fight"] = p.image.load(DIR + GUI + "fight.png")
 
+    # Verificar eventos de teclado/mouse
     def check_events(self):
         """
         Verifica eventos
@@ -113,20 +115,52 @@ class Game:
             elif event.type == p.MOUSEBUTTONDOWN:
                 pos = p.mouse.get_pos()
                 if event.dict["button"] == 1:
-                    # Boton izquierdo
+                    # Botón izquierdo
                     if self.interface == "start":
                         self.start_mouse_events(pos)
                     elif self.interface[0:6] == "battle":
                         self.battle_mouse_events(pos)
                 elif event.dict["button"] == 3 and self.interface[:11] == "battle.main":
-                    # Boton derecho y que estemos en etapa de enfrentamiento
+                    # Botón derecho y que estemos en etapa de enfrentamiento
                     self.interface = "battle.main"
             elif event.type == p.KEYDOWN:
                 pass
 
+    # Dibujar texto en pantalla con fuente mediana
+    def draw_text(self, text, pos, color, is_button=False, is_centered=False):
+        """
+        Función para mostrar texto en pantalla
+        :param text: texto a mostrar
+        :param pos: posición del texto en pantalla
+        :param color: color de la fuente
+        :param is_button: es botón o no
+        :param is_centered: es centrado o no
+        :return:
+        """
+        if color == BLACK:
+            text_obj = self.button_font.render(text, False, p.Color(GREY))
+        elif color == WHITE:
+            text_obj = self.button_font.render(text, False, p.Color(PURPLE))
+        else:
+            return
+        if is_centered:
+            text_loc = p.Rect((SCREEN_WIDTH / 2 - text_obj.get_width() / 2 + pos[0],
+                               SCREEN_HEIGHT / 2 - text_obj.get_height() / 2 + pos[1],
+                               text_obj.get_width(), text_obj.get_height()))
+        else:
+            text_loc = p.Rect((pos[0], pos[1], text_obj.get_width(), text_obj.get_height()))
+        self.screen.blit(text_obj, text_loc)
+        text_obj = self.button_font.render(text, False, p.Color(color))
+        text_loc = text_loc.move(-2, -2)
+        self.screen.blit(text_obj, text_loc)
+
+        if is_button:
+            self.buttons[text] = text_loc
+
+    # Dibujar título en pantalla de inicio
     def draw_title(self):
         """
-        Dibuja el titulo y subtitulo en la pantalla principal
+        Dibuja el título y subtitulo en la pantalla principal
         :return:
         """
         # Titulo
@@ -151,6 +185,32 @@ class Game:
         sub_loc = sub_loc.move(-2, -2)
         self.screen.blit(sub_obj, sub_loc)
 
+    # Dibujar pokemons a elegir en pantalla de inicio
+    def draw_pokemons(self):
+        """
+        Dibuja los pokemon en la pantalla
+        :return:
+        """
+        global choice_rect
+        choice_rect = p.Rect((SCREEN_WIDTH - 768) / 2, SCREEN_HEIGHT, SCREEN_WIDTH - 96*2, 128)
+        p.draw.rect(self.screen, p.Color("white"), choice_rect)
+        p.draw.rect(self.screen, p.Color(BLACK), choice_rect, 2)
+        p.draw.rect(self.screen, p.Color(BLACK), choice_rect, 2)
+        for pok, i in zip(self.id_pokemons, range(0, len(self.id_pokemons))):
+            self.screen.blit(self.images[pok], (128*i - 64 + (SCREEN_WIDTH - (self.images[pok].get_width()*6)) / 2,
+                                                SCREEN_HEIGHT + 15))
+
+    # Remarcar el pokemon elegido por el usuario
+    def draw_highlight(self):
+        """
+        Dibuja un seleccionado al hacer clic
+        :return:
+        """
+        w = self.choice[1]
+        h = SCREEN_HEIGHT
+        self.screen.blit(self.images["op"], (w, h))
+
+    # Dibujar los botones de la pantalla inicial
     def draw_start_buttons(self):
         """
         Dibuja los botones en pantalla de inicio
@@ -167,7 +227,7 @@ class Game:
                                                       135, 80), 5)
         self.draw_text("JUGAR", (0, 150), WHITE, is_button=True, is_centered=True)
 
-        # aviso de que no se ha seleccionado ningun pokemon
+        # aviso de que no se ha seleccionado ningún pokemon
         if not self.choice:
             warning_obj = self.text_font.render("Selecciona un pokemon para continuar", False, p.Color("red"))
             warning_loc = p.Rect(SCREEN_WIDTH / 2 - warning_obj.get_width() / 2,
@@ -184,64 +244,7 @@ class Game:
             warning_loc = warning_loc.move(-2, -2)
             self.screen.blit(warning_obj, warning_loc)
 
-    def draw_battle_buttons(self):
-        self.draw_text("LUCHA",
-                       (SCREEN_WIDTH - self.images["options_bar"].get_width() + 60,
-                        SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), BLACK, is_button=True)
-        self.draw_text("MOCHILA",
-                       (SCREEN_WIDTH - self.images["options_bar"].get_width() / 2.5,
-                        SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), BLACK, is_button=True)
-        self.draw_text("POKEMON",
-                       (SCREEN_WIDTH - self.images["options_bar"].get_width() + 60,
-                        SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), BLACK, is_button=True)
-        self.draw_text("HUIR",
-                       (SCREEN_WIDTH - self.images["options_bar"].get_width() / 2.5,
-                        SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), BLACK, is_button=True)
-
-    def draw_pokemons(self):
-        """
-        Dibuja los pokemones en la pantalla
-        :return:
-        """
-        global choice_rect
-        choice_rect = p.Rect((SCREEN_WIDTH - 768) / 2, SCREEN_HEIGHT, SCREEN_WIDTH - 96*2, 128)
-        p.draw.rect(self.screen, p.Color("white"), choice_rect)
-        p.draw.rect(self.screen, p.Color(BLACK), choice_rect, 2)
-        p.draw.rect(self.screen, p.Color(BLACK), choice_rect, 2)
-        for pok, i in zip(self.id_pokemons, range(0, len(self.id_pokemons))):
-            self.screen.blit(self.images[pok], (128*i - 64 + (SCREEN_WIDTH - (self.images[pok].get_width()*6)) / 2,
-                                                SCREEN_HEIGHT + 15))
-
-    def draw_text(self, text, pos, color, is_button=False, is_centered=False):
-        """
-        Funcion para mostrar texto en pantalla
-        :param text: texto a mostrar
-        :param pos: posicion del texto en pantalla
-        :param color: color de la fuente
-        :param is_button: es boton o no
-        :param is_centered: es centrado o no
-        :return:
-        """
-        if color == BLACK:
-            text_obj = self.button_font.render(text, False, p.Color(GREY))
-        elif color == WHITE:
-            text_obj = self.button_font.render(text, False, p.Color(PURPLE))
-        else:
-            return
-        if is_centered:
-            text_loc = p.Rect((SCREEN_WIDTH / 2 - text_obj.get_width() / 2 + pos[0],
-                               SCREEN_HEIGHT / 2 - text_obj.get_height() / 2 + pos[1],
-                               text_obj.get_width(), text_obj.get_height()))
-        else:
-            text_loc = p.Rect((pos[0], pos[1], text_obj.get_width(), text_obj.get_height()))
-        self.screen.blit(text_obj, text_loc)
-        text_obj = self.button_font.render(text, False, p.Color(color))
-        text_loc = text_loc.move(-2, -2)
-        self.screen.blit(text_obj, text_loc)
-
-        if is_button:
-            self.buttons[text] = text_loc
-
+    # Verificar eventos en la pantalla inicial
     def start_mouse_events(self, pos):
         """
         Controla que pokemon fue elegido por el user
@@ -256,82 +259,67 @@ class Game:
                 self.selected = pos[0] // 128
                 if diff <= pos[0] <= diff + 128:
                     self.choice = (self.id_pokemons[0], diff)
-                elif diff + 128 <= pos[0] <= diff + 128*2:
+                elif diff + 128 <= pos[0] <= diff + 128 * 2:
                     self.choice = (self.id_pokemons[1], diff + 128 * 1)
-                elif diff + 128*2 <= pos[0] <= diff + 128*3:
+                elif diff + 128 * 2 <= pos[0] <= diff + 128 * 3:
                     self.choice = (self.id_pokemons[2], diff + 128 * 2)
-                elif diff + 128*3 <= pos[0] <= diff + 128*4:
+                elif diff + 128 * 3 <= pos[0] <= diff + 128 * 4:
                     self.choice = (self.id_pokemons[3], diff + 128 * 3)
-                elif diff + 128*4 <= pos[0] <= diff + 128*5:
+                elif diff + 128 * 4 <= pos[0] <= diff + 128 * 5:
                     self.choice = (self.id_pokemons[4], diff + 128 * 4)
-                elif diff + 128*5 <= pos[0] <= diff + 128*6:
+                elif diff + 128 * 5 <= pos[0] <= diff + 128 * 6:
                     self.choice = (self.id_pokemons[5], diff + 128 * 5)
 
         if self.buttons["JUGAR"].colliderect(pos[0], pos[1], 1, 1):
             if self.choice:
                 self.interface = "battle.pre"
 
-    def battle_mouse_events(self, pos):
+    # Manejar las pantallas de enfrentamiento
+    def battle_stage(self):
         """
-        Encargada de los eventos del mouse en la pantalla de enfrentamiento
-        :param pos:
+        Función principal de la pantalla de batalla
         :return:
         """
+        global battle_rect
+        battle_rect = p.Rect((0, 0, SCREEN_WIDTH, SCREEN_HEIGHT + PANEL_HEIGHT))  # Toda la pantalla
+        self.screen.blit(self.images["battle_bg"], (0, 0))
+        self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
+        if not self.battle:
+            # self.user_sprite = SpritePokemon(self.choice[0])
+            # self.cpu_sprite = SpritePokemon(self.enemy, True)
+            self.user_sprite = SpritePokemon(1)
+            self.cpu_sprite = SpritePokemon(7, True)
+            self.current_sprites = p.sprite.Group(self.user_sprite, self.cpu_sprite)
+            # self.battle = Battle(Pokemon(self.choice[0], wild=False), Pokemon(self.enemy, wild=True))
+            self.battle = Battle(Pokemon(1, wild=False), Pokemon(7, wild=True))
+
         if self.interface == "battle.pre":
-            if battle_rect.colliderect(pos[0], pos[1], 1, 1):
-                self.interface = "battle.main"
+            self.battle_pre_stage()
+        # Finalizado el movimiento, setear la posición a la final_pos
+        self.user_sprite.update(self.user_sprite.final_pos[0])
+        self.cpu_sprite.update(self.cpu_sprite.final_pos[0])
+        self.current_sprites.draw(self.screen)
 
-        elif self.interface == "battle.main.move":
-            if battle_rect.colliderect(pos[0], pos[1], 1, 1):
-                if self.battle.first_move_made:
-                    self.interface = "battle.main"
-                    self.battle.first_move_made = False
-                    self.battle.move_made = False
-                    if self.battle.ally.current_hp == 0 or self.battle.enemy.current_hp == 0:
-                        self.battle.end_combat()
-                else:
-                    self.battle.first_move_made = True
-                    self.battle.move_made = False
-                    if self.battle.ally.current_hp == 0 or self.battle.enemy.current_hp == 0:
-                        self.battle.end_combat()
+        if self.interface[0:11] == "battle.main":
+            self.battle_main_stage()
 
-        elif self.interface == "battle.main":
-            if self.buttons["LUCHA"].colliderect(pos[0], pos[1], 1, 1):
-                self.interface = "battle.main.fight"
-
-            elif self.buttons["MOCHILA"].colliderect(pos[0], pos[1], 1, 1):
-                self.interface = "battle.main.bag"
-
-            elif self.buttons["POKEMON"].colliderect(pos[0], pos[1], 1, 1):
-                self.interface = "battle.main.pokemon"
-
-            elif self.buttons["HUIR"].colliderect(pos[0], pos[1], 1, 1):
-                if self.battle.can_run():
-                    print(f"{self.battle.ally.name.capitalize()} a huido!")
-                    self.running = False
-                else:
-                    print(f"{self.battle.ally.name.capitalize()} no ha podido huir!!")
-
-        elif self.interface == "battle.main.fight":
-            moves = self.battle.ally.move
-            for move in moves:
-                if self.buttons[move.name.upper()].colliderect(pos[0], pos[1], 1, 1):
-                    self.ally_move = move
-                    self.enemy_move = random.choice(self.battle.enemy.move)
-                    self.interface = "battle.main.move"
-
-    def draw_highlight(self):
+    # Manejar las pantallas de enfrentamiento (animación inicial)
+    def battle_pre_stage(self):
         """
-        Dibuja un seleccionado al hacer click
+        Función encargada de la pantalla de presentación del enfrentamiento
         :return:
         """
-        w = self.choice[1]
-        h = SCREEN_HEIGHT
-        self.screen.blit(self.images["op"], (w, h))
+        self.draw_text(F"A PELEAR CONTRA {self.battle.enemy.name.upper()}!",
+                       (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
+        self.screen.blit(p.transform.rotate(self.images["mouse"], 45), (810, 480))
+        if not self.animation_made:
+            self.sprite_animation(self.user_sprite, self.cpu_sprite)
+            self.animation_made = True
 
+    # Mandar a animar ambos pokemon
     def sprite_animation(self, user, cpu):
         """
-        Funcion principal para animar ambos sprites
+        Función principal para animar ambos sprites
         :param user: sprite user. Mueve hacia la derecha
         :param cpu: sprite cpu. Mueve hacia la izquierda
         :return:
@@ -343,9 +331,10 @@ class Game:
         delta_pos = abs(cpu.final_pos[0] - cpu.rect.x) // -cpu.speed
         self.animation(cpu, delta_pos)
 
+    # Animar un pokemon
     def animation(self, sprite, delta):
         """
-        Funcion para animar los sprites
+        Función para animar los sprites
         :param sprite: sprite a animar
         :param delta: movimiento deseado
         :return:
@@ -357,53 +346,17 @@ class Game:
             p.display.flip()
             self.clock.tick(FPS)
 
-    def battle_stage(self):
-        """
-        Funcion principal de la pantalla de batalla
-        :return:
-        """
-        global battle_rect
-        battle_rect = p.Rect((0, 0, SCREEN_WIDTH, SCREEN_HEIGHT + PANEL_HEIGHT))  # Toda la pantalla
-        self.screen.blit(self.images["battle_bg"], (0, 0))
-        self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
-        if not self.battle:
-            self.user_sprite = SpritePokemon(self.choice[0])
-            self.cpu_sprite = SpritePokemon(self.enemy, True)
-            self.current_sprites = p.sprite.Group(self.user_sprite, self.cpu_sprite)
-            self.battle = Battle(Pokemon(self.choice[0], wild=False), Pokemon(self.enemy, wild=True))
-
-        if self.interface == "battle.pre":
-            self.battle_pre_stage()
-        # Finalizado el movimiento, setear la posicion a la final_pos
-        self.user_sprite.update(self.user_sprite.final_pos[0])
-        self.cpu_sprite.update(self.cpu_sprite.final_pos[0])
-        self.current_sprites.draw(self.screen)
-
-        if self.interface[0:11] == "battle.main":
-            self.battle_main_stage()
-
-    def battle_pre_stage(self):
-        """
-        Funcion encargada de la pantalla de presentacion del enfrentamiento
-        :return:
-        """
-        self.draw_text(F"A PELEAR CONTRA {self.battle.enemy.name.upper()} !",
-                       (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
-        self.screen.blit(p.transform.rotate(self.images["mouse"], 45), (810, 480))
-        if not self.animation_made:
-            self.sprite_animation(self.user_sprite, self.cpu_sprite)
-            self.animation_made = True
-
+    # Manejar las pantallas de enfrentamiento (principal)
     def battle_main_stage(self):
         """
-        Funcion encargada del enfrentamiento
+        Función encargada del enfrentamiento
         :return:
         """
         # Texto
         self.screen.blit(self.images["options_bar"],
                          (SCREEN_WIDTH - self.images["options_bar"].get_width(), SCREEN_HEIGHT))
         self.draw_text(F"QUE DEBERIA HACER", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
-        self.draw_text(F"{self.battle.ally.name.upper()} ?", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), WHITE)
+        self.draw_text(F"{self.battle.ally.name.upper()}?", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), WHITE)
         self.screen.blit(self.images["info_ally"], (SCREEN_WIDTH - self.images["options_bar"].get_width(),
                                                     SCREEN_HEIGHT - self.images["info_ally"].get_height() - 10))
         self.draw_text(self.battle.ally.name.upper(), (540, 300), BLACK)
@@ -417,7 +370,7 @@ class Game:
         self.draw_battle_buttons()
 
         # Vida y XP
-        ############
+        self.show_info()
 
         if self.interface == "battle.main.fight":
             self.screen.blit(self.images["fight"], (0, SCREEN_HEIGHT))
@@ -438,12 +391,16 @@ class Game:
             if not self.battle.first_move_made:
                 self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
                 move = self.ally_move if turn else self.enemy_move
-                self.draw_text(f"{first.name.upper()} usó {move.name.upper()}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
+                wild = "enemigo " if first.wild else ""
+                self.draw_text(f"{first.name.upper()} {wild}usó ", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
+                self.draw_text(move.name.upper() + "!", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), WHITE)
                 self.battle.make_move(second, move)
-            else:
+            elif self.battle.first_move_made:
                 self.screen.blit(self.images["blue_bar"], (0, SCREEN_HEIGHT))
                 move = self.ally_move if not turn else self.enemy_move
-                self.draw_text(f"{second.name.upper()} usó {move.name.upper()}", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
+                wild = "enemigo " if second.wild else ""
+                self.draw_text(f"{second.name.upper()} {wild}usó ", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), WHITE)
+                self.draw_text(move.name.upper() + "!", (50, SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), WHITE)
                 self.battle.make_move(first, move)
 
         elif self.interface == "battle.main.bag":
@@ -452,9 +409,88 @@ class Game:
         elif self.interface == "battle.main.pokemon":
             print("POKEMON")
 
+    # Mostrar y actualizar la experiencia del usuario y la vida del usuario y oponente
+    def show_info(self):
+        """
+        Actualiza la vida y experiencia mostradas en pantalla
+        """
+        xp = self.battle.ally.current_xp * 256 // self.battle.ally.xp_next_level
+        xp_rect = p.Rect((608, 422, xp, 8))
+        p.draw.rect(self.screen, p.Color(XP_COLOR), xp_rect)
+        hp = self.battle.ally.current_hp * 196 // self.battle.ally.hp
+        hp_ally_rect = p.Rect((668, 358, hp, 12))
+        p.draw.rect(self.screen, p.Color(HP_COLOR), hp_ally_rect)
+        hp = self.battle.enemy.current_hp * 196 // self.battle.enemy.hp
+        hp_ally_rect = p.Rect((232, 118, hp, 12))
+        p.draw.rect(self.screen, p.Color(HP_COLOR), hp_ally_rect)
+
+    # Dibujar los botones en las pantallas de enfrentamiento
+    def draw_battle_buttons(self):
+        self.draw_text("LUCHA",
+                       (SCREEN_WIDTH - self.images["options_bar"].get_width() + 60,
+                        SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), BLACK, is_button=True)
+        self.draw_text("MOCHILA",
+                       (SCREEN_WIDTH - self.images["options_bar"].get_width() / 2.5,
+                        SCREEN_HEIGHT + PANEL_HEIGHT / 4 - 10), BLACK, is_button=True)
+        self.draw_text("POKEMON",
+                       (SCREEN_WIDTH - self.images["options_bar"].get_width() + 60,
+                        SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), BLACK, is_button=True)
+        self.draw_text("HUIR",
+                       (SCREEN_WIDTH - self.images["options_bar"].get_width() / 2.5,
+                        SCREEN_HEIGHT + PANEL_HEIGHT / 2 + 10), BLACK, is_button=True)
+
+    # Verificar los eventos en las pantallas de enfrentamiento
+    def battle_mouse_events(self, pos):
+        """
+        Encargada de los eventos del mouse en la pantalla de enfrentamiento
+        :param pos:
+        :return:
+        """
+        if self.interface == "battle.pre":
+            if battle_rect.colliderect(pos[0], pos[1], 1, 1):
+                self.interface = "battle.main"
+
+        elif self.interface == "battle.main.move":
+            if battle_rect.colliderect(pos[0], pos[1], 1, 1):
+                if not self.battle.first_move_made and self.battle.active:
+                    self.battle.first_move_made = True
+                    self.battle.move_made = False
+                elif self.battle.first_move_made and self.battle.active:
+                    self.battle.first_move_made = False
+                    self.battle.move_made = False
+                    self.interface = "battle.main"
+                elif not self.battle.active:
+                    self.interface = "battle.main"
+
+        elif self.interface == "battle.main":
+            if self.buttons["LUCHA"].colliderect(pos[0], pos[1], 1, 1):
+                self.interface = "battle.main.fight"
+
+            elif self.buttons["MOCHILA"].colliderect(pos[0], pos[1], 1, 1):
+                self.interface = "battle.main.bag"
+
+            elif self.buttons["POKEMON"].colliderect(pos[0], pos[1], 1, 1):
+                self.interface = "battle.main.pokemon"
+
+            elif self.buttons["HUIR"].colliderect(pos[0], pos[1], 1, 1):
+                if self.battle.can_run():
+                    # print(f"{self.battle.ally.name.capitalize()} a huido!")  ####################  Mostrar en pantalla
+                    self.running = False
+                else:
+                    pass  # print(f"{self.battle.ally.name.capitalize()} no ha podido huir!")  ####  Mostrar en pantalla
+
+        elif self.interface == "battle.main.fight":
+            moves = self.battle.ally.move
+            for move in moves:
+                if self.buttons[move.name.upper()].colliderect(pos[0], pos[1], 1, 1):
+                    self.ally_move = move
+                    self.enemy_move = random.choice(self.battle.enemy.move)
+                    self.interface = "battle.main.move"
+
+    # Función Principal
     def main(self):
         """
-        Funcion principal del juego
+        Función principal del juego
         :return:
         """
         p.display.set_caption(TITLE)
@@ -470,17 +506,6 @@ class Game:
                     self.draw_highlight()
             if self.interface[0:6] == "battle":
                 self.battle_stage()
-                if not self.battle.active:
-                    p.time.wait(5000)
-                    self.running = False
-                    #self.interface = "battle.main"
 
             self.clock.tick(FPS)
             p.display.flip()
-
-
-
-
-
-
-

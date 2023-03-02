@@ -23,6 +23,7 @@ class Move:
         self.variation = random.randint(85, 100)
         self.critic_chance_index = 0.0625  # 0 Implementar indices para las chances de critico
 
+    # Obtener estadísticas del movimiento
     def get_move_stats(self):
         """
         Obtiene los stats del movimiento correspondiente de la base de datos
@@ -34,6 +35,7 @@ class Move:
         stats = self.cursor.fetchall()[0]
         return stats
 
+    # Obtener el efecto producido por el movimiento
     def get_effect_info(self):
         """
         Obtiene la informacion de efecto del movimiento correspondiente
@@ -81,6 +83,7 @@ class Pokemon:
 
         self.db.close()
 
+    # Obtener nombre del pokemon
     def get_name(self):
         """
         Obtiene el nombre del pokemon segun su numero de la pokedex nacional
@@ -90,6 +93,7 @@ class Pokemon:
         dt = self.cursor.fetchall()
         return dt[0][0]
 
+    # Obtener tipo/s del pokemon
     def get_id_types(self):
         """
         Obtiene los id del tipo de pokemon
@@ -103,6 +107,7 @@ class Pokemon:
             types.append(id_type)
         return types
 
+    # Obtener el total de movimientos que el pokemon puede obtener
     def get_id_moves(self):
         """
         Obtiene una lista de los id de los movimientos disponibles para el pokemon
@@ -117,6 +122,7 @@ class Pokemon:
             moves.append(id_move)
         return moves
 
+    # Obtener la experiencia base del pokemon
     def get_base_xp(self):
         """
         Obtiene la experiencia base del pokemon
@@ -126,6 +132,7 @@ class Pokemon:
         xp = self.cursor.fetchall()[0][0]
         return xp
 
+    # Obtener estadísticas bases del pokemon
     def get_base_stats(self):
         """
         Obtiene las stats bases del pokemon
@@ -144,6 +151,7 @@ class Pokemon:
         growth_rate_id = self.cursor.fetchall()[0][0]
         return hp, attack, defense, sp_attack, sp_defense, speed, ev, growth_rate_id
 
+    # Obtener naturaleza del pokemon (aleatoria)
     def get_nature(self):
         """
         Obtiene la naturaleza del pokemon (aleatoria)
@@ -166,6 +174,7 @@ class Pokemon:
                 nature[name] = 1
         return nature
 
+    # Obtener la tasa de crecimiento del pokemon
     def get_xp_growth_rate(self, lvl=None):
         """
         Calcula la experiencia necesaria para llegar al siguiente nivel (o  aun nivel n)
@@ -206,6 +215,7 @@ class Pokemon:
 
         return math.floor(xp)
 
+    # Obtener valor real de las estadísticas del pokemon
     def get_stat(self, base, iv, ev, nature=None, hp=False):
         """
         Obtiene las estadisticas del pokemon segun su nivel, naturaleza, iv, y ev
@@ -253,6 +263,7 @@ class Battle:
         self.first_move_made = False
         self.move_made = False
 
+    # Obtener quien ataca primero
     def get_turn(self):
         """
         Calcula quien ataca primero en el primer movimiento
@@ -260,6 +271,7 @@ class Battle:
         """
         return True if self.ally.speed >= self.enemy.speed else False
 
+    # Verificar si el usuario puede escapar o no
     def can_run(self):
         """
         Calcula la posibilidad de un pokemon de huir de un combate. Calcula solo para "ally"
@@ -272,6 +284,29 @@ class Battle:
         n = random.randint(0, 255)
         return True if n < int(f) else False
 
+    # Obtener valores de bonus y efectividad necesarios para calcular en daño de un ataque
+    def get_bonus_and_effectivity(self, move):
+        """
+        Calcula dos valores necesarios para get_damage()
+        :param move:
+        :return:
+        """
+        attacker = self.ally if self.ally_turn else self.enemy
+        defender = self.ally if not self.ally_turn else self.enemy
+        if len(attacker.id_type) == 2:
+            b = 1.5 if move.type_id == attacker.id_type[0] or move.type_id == attacker.id_type[1] else 1
+        else:
+            b = 1.5 if move.type_id == attacker.id_type[0] else 1
+        e = self.effect_chart[move.type_id-1][defender.id_type[0]-1] # verifica con el primer tipo del pokemon. Ignora el posible segundo tipo
+        if e == 2:
+            print("es super efectivo")
+        elif e == 1:
+            print("es normal")
+        elif e == 0.5:
+            print("es poco efectivo")
+        return b, e
+
+    # Calcular total de daño de un ataque
     def get_damage(self, move):
         """
         Calcula el daño de un movimiento
@@ -302,21 +337,7 @@ class Battle:
                 damage = damage * multiplier
             return math.floor(damage)
 
-    def get_bonus_and_effectivity(self, move):
-        """
-        Calcula dos valores necesarios para get_damage()
-        :param move:
-        :return:
-        """
-        attacker = self.ally if self.ally_turn else self.enemy
-        defender = self.ally if not self.ally_turn else self.enemy
-        if len(attacker.id_type) == 2:
-            b = 1.5 if move.type_id == attacker.id_type[0] or move.type_id == attacker.id_type[1] else 1
-        else:
-            b = 1.5 if move.type_id == attacker.id_type[0] else 1
-        e = self.effect_chart[move.type_id-1][defender.id_type[0]-1] # verifica con el primer tipo del pokemon. Ignora el posible segundo tipo
-        return b, e
-
+    # Realizar el ataque
     def make_move(self, opponent, move):
         if not self.move_made:
             damage = self.get_damage(move)
@@ -324,9 +345,10 @@ class Battle:
             opponent.current_hp = 0 if opponent.current_hp <= 0 else opponent.current_hp
             print(f"{opponent.name.upper()} quedó con {opponent.current_hp}")
             self.move_made = True
-            #if opponent.current_hp == 0:
-            #    self.end_combat()
+            if opponent.current_hp == 0:
+                self.end_combat()
 
+    # Obtener el valor de la experiencia ganada begun el combate y oponente derrotado
     def get_experience(self):
         """
         Calcula la experiencia ganado por el pokemon ganador
@@ -338,6 +360,7 @@ class Battle:
         xp = (e * l * c) / 7
         return math.floor(xp)
 
+    # Finalizar el combate. Modifica cantidad de experiencia y nivel del ganador(solo si este pertenece a un entrenador)
     def end_combat(self):
         """
         Funcion de finalizacion de combate
@@ -345,11 +368,11 @@ class Battle:
         """
         winner = self.ally if self.enemy.current_hp == 0 else self.enemy if self.ally.current_hp == 0 else None
         if not winner.wild:
-            print(winner.name.upper() + " ha ganado " + str(self.get_experience()) + " de xp!") ######################
+            #print(winner.name.upper() + " ha ganado " + str(self.get_experience()) + " de xp!") ######################
             winner.current_xp += self.get_experience()
             if winner.current_xp >= winner.xp_next_level:
                 winner.level += 1
-                winner.current_xp = winner.xp_next_level - winner.current_xp
+                winner.current_xp = winner.current_xp - winner.xp_next_level
             self.active = False
-        if winner.wild:
+        else:
             self.active = False
