@@ -1,0 +1,56 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "pokemon_map.tmx",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "file.lastUsedOpenFilter": "Todos los archivos (*)",
+    "fileStates": {
+        "objects.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 0.125,
+            "scaleInEditor": 0.25
+        },
+        "pokemon_map.tmx": {
+            "scale": 0.5,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 602,
+                "y": 440
+            }
+        },
+        "tileset-pokemon_dawn.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 2
+        }
+    },
+    "last.imagePath": "C:/Python Projects/Python-Pokemon/assets/sprites_/tileset",
+    "map.height": 40,
+    "map.lastUsedFormat": "tmx",
+    "map.renderOrder": null,
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 60,
+    "openFiles": [
+        "pokemon_map.tmx",
+        "tileset-pokemon_dawn.tsx",
+        "objects.tsx"
+    ],
+    "project": "pokemon_map.tiled-project",
+    "recentFiles": [
+        "objects.tsx",
+        "tileset-pokemon_dawn.tsx",
+        "pokemon_map.tmx"
+    ],
+    "resizeMap.removeObjects": true,
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.tileSize": {
+        "height": 16,
+        "width": 16
+    },
+    "tileset.type": 1
+}

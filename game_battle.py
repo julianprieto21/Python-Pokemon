@@ -22,7 +22,7 @@ class SpritePokemon(p.sprite.Sprite):
 
     def __init__(self, nro, front_view=False):
         super().__init__()
-        self.id_pokemons_array = np.arange(1, 505).reshape(18, 28)
+        self.id_pokemons_array = POK_ARRAY
         c, r = np.where(self.id_pokemons_array == nro)
         c = c[0]
         r = r[0]
@@ -56,10 +56,10 @@ class SpritePokemon(p.sprite.Sprite):
         self.rect.x = pos
 
 
-class Game:
+class BattleGame:
     def __init__(self):
         # Display
-        p.init()
+        #p.init()  ########################
         self.running = True
         self.clock = p.time.Clock()
         self.screen = p.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT + PANEL_HEIGHT))
@@ -81,8 +81,6 @@ class Game:
         self.animation_made = False
         self.ally_move = None
         self.enemy_move = None
-
-        self.load_fonts()
 
     # Cargar las fuentes necesarias
     def load_fonts(self):
@@ -491,8 +489,10 @@ class Game:
         Función principal del juego
         :return:
         """
+        p.init()
         p.display.set_caption(TITLE)
         self.load_images()
+        self.load_fonts()
         while self.running:
             self.screen.fill(GREY)
             self.check_events()

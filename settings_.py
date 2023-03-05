@@ -1,14 +1,19 @@
+import numpy as np
 
+
+# Info
 SCREEN_WIDTH, SCREEN_HEIGHT = 960, 448
 PANEL_WIDTH = SCREEN_WIDTH
 PANEL_HEIGHT = 192
 FPS = 60
+
+# Paths
 TITLE = "POKEMON BATTLES"
 DIR = "assets/"
 GUI = "gui_/"
 SPRITES = "sprites_/"
 
-# colors
+# Colors
 BLACK = (72, 72, 72)
 GREY = (208, 208, 200)
 DARK_GREY = (40, 48, 48)
@@ -20,6 +25,8 @@ YELLOW = (200, 168, 72)
 XP_COLOR = (64, 200, 248)
 HP_COLOR = (112, 248, 168)
 
+# Pokemon Array
+POK_ARRAY = np.arange(1, 505).reshape(18, 28)
 
 
 
