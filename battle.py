@@ -1,5 +1,5 @@
-from settings_ import *
-from engine_ import Pokemon, Battle
+from settings import *
+from engine import Pokemon, Battle
 import pygame as p
 import random
 import numpy as np
@@ -56,7 +56,7 @@ class SpritePokemon(p.sprite.Sprite):
         self.rect.x = pos
 
 
-class BattleGame:
+class BattleMain:
     def __init__(self):
         # Display
         #p.init()  ########################

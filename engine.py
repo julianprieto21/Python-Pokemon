@@ -2,7 +2,7 @@ import random
 import sqlite3
 import numpy as np
 import math
-from settings_ import *
+from settings import *
 
 
 class Move:

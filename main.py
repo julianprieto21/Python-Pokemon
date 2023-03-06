@@ -1,6 +1,6 @@
-#from game_battle import BattleGame
-from game_main import MainGame
+from battle import BattleMain
+from game import Main
 
 if __name__ == "__main__":
-    game = MainGame()
+    game = BattleMain()
     game.main()
