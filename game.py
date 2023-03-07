@@ -1,3 +1,4 @@
+import random
 import sys
 import pygame as p
 from pytmx.util_pygame import load_pygame
@@ -27,7 +28,7 @@ class Player(p.sprite.Sprite):
 
     def __init__(self, pos, group, rects):
         super().__init__(group)
-        # Movimiento
+        # Movimiento de personaje
         self.frame = 0
         self.speed = 10
         self.run = False
@@ -38,7 +39,7 @@ class Player(p.sprite.Sprite):
         self.walk_images, self.run_images = self.load_sprite()
         self.image = self.walk_images["down"][0]
         self.rect = self.image.get_rect(center=pos)
-        self.obstacles = rects
+        self.obstacles, self.battle_zones = rects
 
     def load_sprite(self):
         """
@@ -74,57 +75,52 @@ class Player(p.sprite.Sprite):
         Actualiza el sprite según la tecla de movimiento presionada
         """
         keys = p.key.get_pressed()
-        if keys[p.K_LSHIFT]:  # Run
-            self.delay = 20
-            self.run = True
-        else:
-            self.delay = 60
-            self.run = False
-        self.speed = 20 if self.run else 10
-        if keys[p.K_LEFT] or keys[p.K_a]:  # Left
-            # if self.rect.centerx <= 540:
-            #     self.speed = 0
-            #     self.frame = 0
+        self.run = True if keys[p.K_LSHIFT] else False  # Run
+        self.speed = 30 if self.run else 10
 
-            self.rect.centerx -= self.speed
-            self.image = self.update_sprite("left", self.frame)
-            self.direction = "left"
-            self.update_frame()
-            self.check_collision()
+        if keys[p.K_LEFT] or keys[p.K_a]:  # Left
+            self.move_left()
         elif keys[p.K_RIGHT] or keys[p.K_d]:  # Right
-            # if self.rect.centerx >= 3400:
-            #     self.speed = 0
-            #     self.frame = 0
-            self.rect.centerx += self.speed
-            self.image = self.update_sprite("right", self.frame)
-            self.direction = "right"
-            self.update_frame()
-            self.check_collision()
+            self.move_right()
         elif keys[p.K_UP] or keys[p.K_w]:  # Up
-            # if self.rect.centery <= 280:
-            #     self.speed = 0
-            #     self.frame = 0
-            self.rect.centery -= self.speed
-            self.image = self.update_sprite("up", self.frame)
-            self.direction = "up"
-            self.update_frame()
-            self.check_collision()
+            self.move_up()
         elif keys[p.K_DOWN] or keys[p.K_s]:  # Down
-            # if self.rect.centery >= 2300:
-            #     self.speed = 0
-            #     self.frame = 0
-            self.rect.centery += self.speed
-            self.image = self.update_sprite("down", self.frame)
-            self.direction = "down"
-            self.update_frame()
-            self.check_collision()
+            self.move_down()
         else:
-            self.frame = 0
-            self.image = self.update_sprite(self.direction, 0)
-        p.time.delay(self.delay)
+            self.stand_still()
+
+    def stand_still(self):
+        self.frame = 0
+        self.image = self.update_sprite(self.direction, 0)
+
+    def move_up(self):
+        self.rect.centery -= self.speed
+        self.image = self.update_sprite("up", self.frame)
+        self.direction = "up"
+        self.update_frame()
+
+    def move_down(self):
+        self.rect.centery += self.speed
+        self.image = self.update_sprite("down", self.frame)
+        self.direction = "down"
+        self.update_frame()
+
+    def move_left(self):
+        self.rect.centerx -= self.speed
+        self.image = self.update_sprite("left", self.frame)
+        self.direction = "left"
+        self.update_frame()
+
+    def move_right(self):
+        self.rect.centerx += self.speed
+        self.image = self.update_sprite("right", self.frame)
+        self.direction = "right"
+        self.update_frame()
 
     def update(self):
         self.input()
+        self.check_collision()
+        self.check_zones_collision()
 
     def update_frame(self):
         """
@@ -145,6 +141,13 @@ class Player(p.sprite.Sprite):
                     self.rect.left = rect.right
                 elif self.direction == "right":
                     self.rect.right = rect.left
+
+    def check_zones_collision(self):
+        for zone in self.battle_zones:
+            if self.rect.colliderect(zone):
+                i = random.randint(0, 100)
+                if i == 5:
+                    print("battle")
 
 
 class CameraGroup(p.sprite.Group):
@@ -168,6 +171,9 @@ class CameraGroup(p.sprite.Group):
 
 
 class Main:
+    objects = p.image.load(DIR+"maps_/test/starting_map.png")
+    objects = p.transform.scale(objects, (objects.get_width() * 4, objects.get_height() * 4))
+
     def __init__(self):
         p.init()
         self.running = True
@@ -178,9 +184,13 @@ class Main:
         self.map_w = self.tmx_data.width * 16
         self.map_h = self.tmx_data.height * 16
         self.camera_group = CameraGroup()
-        self.rects = []
+        self.boundaries = []
+        self.battle_zones = []
         self.player = None
         self.player_start_pos = self.get_starting_pos()
+
+        self.frame_time = 1000 // FPS
+        self.last_update_time = p.time.get_ticks()
 
     def get_starting_pos(self):
         for obj in self.tmx_data.objects:
@@ -188,7 +198,7 @@ class Main:
                 return obj.x * self.multiplier, obj.y * self.multiplier
 
     def initialize_player(self):
-        self.player = Player(self.player_start_pos, self.camera_group, self.rects)
+        self.player = Player(self.player_start_pos, self.camera_group, (self.boundaries, self.battle_zones))
 
     def initialize_map(self):
         for layer in self.tmx_data.visible_layers:
@@ -202,17 +212,15 @@ class Main:
     def initialize_rects(self):
         for obj in self.tmx_data.objects:
             if obj.name == "Rect":
-                self.rects.append(p.Rect((obj.x * self.multiplier, obj.y * self.multiplier,
-                                          obj.width * self.multiplier, obj.height * self.multiplier)))
+                self.boundaries.append(p.Rect((obj.x * self.multiplier, obj.y * self.multiplier,
+                                               obj.width * self.multiplier, obj.height * self.multiplier)))
+            elif obj.name == "Zone":
+                self.battle_zones.append(p.Rect((obj.x * self.multiplier, obj.y * self.multiplier,
+                                                 obj.width * self.multiplier, obj.height * self.multiplier)))
 
     def draw_objects(self):
-        for layer in self.tmx_data.visible_layers:
-            if layer.name == "Layer_3":
-                for x, y, surface in layer.tiles():
-                    pos = (x * 16 * self.multiplier, y * 16 * self.multiplier)
-                    surface = p.transform.scale(surface, (surface.get_width() * self.multiplier,
-                                                          surface.get_height() * self.multiplier))
-                    Tile(pos, surface, self.camera_group)
+        self.screen.blit(self.objects, (WINDOW_W // 2 - self.player.rect.x - 42,
+                                        WINDOW_H // 2 - self.player.rect.y - 50))
 
     def run(self):
         self.initialize_map()
@@ -224,12 +232,16 @@ class Main:
                 if event.type == p.QUIT:
                     self.running = False
                     sys.exit()
-
             self.screen.fill((0, 0, 0))
-
             self.camera_group.update()
             self.camera_group.custom_draw(self.player.rect)
             self.draw_objects()
+
+            current_time = p.time.get_ticks()
+            elapsed_time = current_time - self.last_update_time
+            if elapsed_time < self.frame_time:
+                p.time.wait(self.frame_time - elapsed_time)
+            self.last_update_time = current_time
 
             self.clock.tick(FPS)
             p.display.flip()
